@@ -384,6 +384,9 @@ config NET_TCP_MAX_RECV_WINDOW_SIZE
 	int
 	default 20480
 
+configdefault ETH_STM32_HW_CHECKSUM
+	default y
+
 # Increase retry and timeout limits
 config NET_TCP_INIT_RETRANSMISSION_TIMEOUT
 	int
