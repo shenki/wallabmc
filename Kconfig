@@ -552,6 +552,7 @@ endif
 config APP_STACK_DEBUG
 	bool
 	default n
+	select INIT_STACKS
 	select THREAD_NAME
 	select THREAD_ANALYZER
 	select THREAD_ANALYZER_RUN_UNLOCKED
