@@ -249,9 +249,36 @@ static const sec_tag_t sec_tag_list_verify_none[] = {
 #endif
 	};
 
+#if defined(CONFIG_MBEDTLS_SSL_PROTO_TLS1_2)
+#define HTTPS_SERVICE_CONFIG NULL
+#else
+/*
+ * The HTTP server opens its socket as NET_IPPROTO_TLS_1_2, which sets TLS
+ * 1.2 as the minimum version, and Mbed TLS built without TLS 1.2 then fails
+ * every handshake with a bad config error. Ask for TLS 1.3 instead.
+ */
+static int https_socket_create(const struct http_service_desc *svc, int af,
+			       int proto)
+{
+	ARG_UNUSED(svc);
+
+	if (proto == NET_IPPROTO_TLS_1_2) {
+		proto = NET_IPPROTO_TLS_1_3;
+	}
+
+	return zsock_socket(af, NET_SOCK_STREAM, proto);
+}
+
+static const struct http_service_config https_service_config = {
+	.socket_create = https_socket_create,
+};
+#define HTTPS_SERVICE_CONFIG (&https_service_config)
+#endif
+
 static uint16_t https_service_port = 443;
 HTTPS_SERVICE_DEFINE(https_service, NULL, &https_service_port,
-		     3, 10, NULL, NULL, NULL, sec_tag_list_verify_none,
+		     3, 10, NULL, NULL, HTTPS_SERVICE_CONFIG,
+		     sec_tag_list_verify_none,
 		     sizeof(sec_tag_list_verify_none));
 
 #if defined(CONFIG_SHELL_BACKEND_WEBSOCKET)

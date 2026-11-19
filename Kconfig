@@ -69,7 +69,6 @@ config APP_CRYPTO
 	select NET_SOCKETS_SOCKOPT_TLS
 	select MBEDTLS
 	select MBEDTLS_ENABLE_HEAP
-	select MBEDTLS_SSL_PROTO_TLS1_2
 	select MBEDTLS_SSL_ALPN
 	# Curve-specific P-256 reduction, much faster TLS handshakes.
 	select MBEDTLS_ECP_NIST_OPTIM if PSA_WANT_KEY_TYPE_ECC_KEY_PAIR_BASIC
@@ -88,8 +87,18 @@ config APP_CRYPTO_TLS13
 
 config APP_CRYPTO_PUBLIC_KEY
 	bool
-	# Basic ciphers
-	select MBEDTLS_CIPHERSUITE_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+	# TLS 1.3 only. The TLS 1.2 ECDHE-ECDSA ciphersuite option would
+	# turn TLS 1.2 back on, so select what TLS 1.3 needs from it: the
+	# P-256 ECDSA certificate, ECDH key exchange and AES-GCM.
+	select MBEDTLS_X509_CRT_PARSE_C
+	select PSA_WANT_ALG_ECDH
+	select PSA_WANT_ALG_ECDSA
+	select PSA_WANT_ALG_GCM
+	select PSA_WANT_KEY_TYPE_AES
+	select PSA_WANT_KEY_TYPE_ECC_KEY_PAIR_IMPORT
+	select PSA_WANT_KEY_TYPE_ECC_KEY_PAIR_EXPORT
+	select PSA_WANT_KEY_TYPE_ECC_KEY_PAIR_GENERATE
+	select PSA_WANT_ECC_SECP_R1_256
 	select PSA_WANT_ALG_SHA_256
 	# X25519 key exchange alongside P-256 (the certificate stays P-256).
 	# Clients such as OpenSSL send only an X25519 key share by default,
@@ -113,6 +122,7 @@ config TF_PSA_CRYPTO_USER_CONFIG_FILE
 # so much that it is not worthwhile).
 config APP_CRYPTO_PSK
 	bool
+	select MBEDTLS_SSL_PROTO_TLS1_2
 	select MBEDTLS_KEY_EXCHANGE_PSK_ENABLED # TLS1.2
 	select MBEDTLS_CIPHERSUITE_TLS_PSK_WITH_AES_128_GCM_SHA256
 
