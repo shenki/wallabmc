@@ -21,6 +21,9 @@ endif()
 
 
 zephyr_linker_sources(SECTIONS sections-rom.ld)
+zephyr_linker_sources_ifdef(CONFIG_MBEDTLS_HEAP_CUSTOM_SECTION
+  SECTIONS sections-dtcm.ld
+)
 zephyr_linker_section_ifdef(CONFIG_HTTP_SERVER
   NAME http_resource_desc_web_https_service
   KVMA RAM_REGION GROUP RODATA_REGION
