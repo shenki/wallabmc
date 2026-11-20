@@ -78,10 +78,12 @@ config APP_CRYPTO
 	# feasible if we need webui to set time.
 	# select MBEDTLS_HAVE_TIME_DATE if RTC
 
+# TLS 1.3 needs the certificate: its ephemeral key exchange mode does not
+# build without one. A PSK only build is limited to TLS 1.2.
 config APP_CRYPTO_TLS13
 	bool
 	default y
-	depends on APP_CRYPTO && !APP_CRYPTO_PSK
+	depends on APP_CRYPTO && APP_CRYPTO_PUBLIC_KEY
 	select MBEDTLS_SSL_PROTO_TLS1_3
         select MBEDTLS_SSL_TLS1_3_KEY_EXCHANGE_MODE_EPHEMERAL_ENABLED
 	select MBEDTLS_SSL_TLS1_3_KEY_EXCHANGE_MODE_PSK_EPHEMERAL_ENABLED
@@ -114,12 +116,14 @@ config APP_CRYPTO_PUBLIC_KEY
 config TF_PSA_CRYPTO_USER_CONFIG_FILE
 	default "tf-psa-crypto-user-config.h" if APP_CRYPTO_PUBLIC_KEY
 
-# PSK can only use TLS1.2 (supporting 1.3 seems to require pulling in
-# so much that it is not worthwhile).
+# Pre-shared keys work with TLS 1.2 (plain PSK) and, when TLS 1.3 is
+# enabled, TLS 1.3 (PSK with an ephemeral key exchange, so sessions keep
+# forward secrecy).
 config APP_CRYPTO_PSK
 	bool
 	select MBEDTLS_KEY_EXCHANGE_PSK_ENABLED # TLS1.2
 	select MBEDTLS_CIPHERSUITE_TLS_PSK_WITH_AES_128_GCM_SHA256
+	select MBEDTLS_SSL_TLS1_3_KEY_EXCHANGE_MODE_PSK_EPHEMERAL_ENABLED if APP_CRYPTO_TLS13
 
 config APP_CRYPTO_DEBUG
 	bool "crypto debug"
