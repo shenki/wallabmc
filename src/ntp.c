@@ -49,23 +49,15 @@ static int sntp_set_clocks(struct sntp_time *ts)
 static int dns_query(const char *host, uint16_t port, int family, int socktype,
 			struct sockaddr *addr, socklen_t *addrlen)
 {
-	struct addrinfo hints = {
-		.ai_family = family,
-		.ai_socktype = socktype,
-	};
-	struct addrinfo *res = NULL;
-	int rv;
+	struct sockaddr_in *sin = (struct sockaddr_in *)addr;
 
-	rv = getaddrinfo(host, NULL, &hints, &res);
-	if (rv < 0) {
-		LOG_ERR("getaddrinfo failed (%d, errno %d)", rv, errno);
-		return rv;
+	memset(sin, 0, sizeof(*sin));
+	sin->sin_family = AF_INET;
+	if (zsock_inet_pton(AF_INET, host, &sin->sin_addr) != 1) {
+		LOG_ERR("NTP server must be an IPv4 address");
+		return -EINVAL;
 	}
-
-	*addr = *res->ai_addr;
-	*addrlen = res->ai_addrlen;
-
-	freeaddrinfo(res);
+	*addrlen = sizeof(*sin);
 
 	net_sin(addr)->sin_port = htons(port);
 
