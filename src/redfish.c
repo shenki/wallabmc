@@ -1089,7 +1089,9 @@ static const char *get_iso_time(void)
 
 	clock_gettime(CLOCK_REALTIME, &ts);
 	tm_info = gmtime(&ts.tv_sec);
-	strftime(str, sizeof(str), "%Y-%m-%dT%H:%M:%SZ", tm_info);
+	snprintf(str, sizeof(str), "%04d-%02d-%02dT%02d:%02d:%02dZ",
+		 tm_info->tm_year + 1900, tm_info->tm_mon + 1, tm_info->tm_mday,
+		 tm_info->tm_hour, tm_info->tm_min, tm_info->tm_sec);
 
 	return str;
 }
