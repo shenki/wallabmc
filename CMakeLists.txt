@@ -161,10 +161,8 @@ if(CONFIG_TF_PSA_CRYPTO_USER_CONFIG)
 endif()
 
 if(CONFIG_PERSISTENT_STORAGE)
-  if(CONFIG_CODE_DATA_RELOCATION_SRAM AND CONFIG_SOC_FLASH_STM32)
-    include(${ZEPHYR_BASE}/cmake/modules/extensions.cmake)
-    FILE(GLOB flash_driver ${ZEPHYR_BASE}/drivers/flash/flash_stm32*.c)
-    zephyr_code_relocate(FILES ${flash_driver} LOCATION RAM)
+  if(CONFIG_SOC_FLASH_STM32)
+    # The driver runs from flash, as it does in a default Zephyr build.
   elseif(CONFIG_SOC_FLASH_ESP32)
     # ESP32 flash driver disables the XIP cache internally; no relocation needed.
   else()
