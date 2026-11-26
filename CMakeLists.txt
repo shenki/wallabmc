@@ -171,3 +171,17 @@ if(CONFIG_PERSISTENT_STORAGE)
     message(FATAL_ERROR "flash storage handling is not defined for this platform")
   endif()
 endif()
+
+# Keep the crypto code at -O2 in a size-optimised build: TLS handshakes are
+# about 30% slower with it at -Os. target_compile_options() on the targets
+# would come before the global -Os on the command line and lose; an
+# interface library is linked after zephyr_interface, so its flag is last.
+if(CONFIG_SIZE_OPTIMIZATIONS AND CONFIG_MBEDTLS)
+  add_library(app_crypto_o2 INTERFACE)
+  target_compile_options(app_crypto_o2 INTERFACE -O2)
+  foreach(t tfpsacrypto builtin everest)
+    if(TARGET ${t})
+      target_link_libraries(${t} PRIVATE app_crypto_o2)
+    endif()
+  endforeach()
+endif()
