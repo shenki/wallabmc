@@ -7,6 +7,7 @@
 #include <zephyr/logging/log_ctrl.h>
 LOG_MODULE_REGISTER(wallabmc_time, LOG_LEVEL_INF);
 
+#include <stdlib.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/timeutil.h>
 
@@ -15,16 +16,25 @@ LOG_MODULE_REGISTER(wallabmc_time, LOG_LEVEL_INF);
 
 static int time_iso_to_ts(const char *str, struct timespec *ts)
 {
+	/* YYYY-MM-DDTHH:MM:SS.fffZ: the character that ends each field */
+	static const char sep[] = "--T::.Z";
 	struct tm tm;
 	int year, month, day, hour, minute, second, frac, ms;
+	int *field[] = { &year, &month, &day, &hour, &minute, &second, &frac };
 	time_t epoch_sec;
-	int ret;
+	const char *p = str;
+	char *end;
+	int i;
 
 	memset(&tm, 0, sizeof(struct tm));
 
-	ret = sscanf(str, "%d-%d-%dT%d:%d:%d.%3dZ",
-			&year, &month, &day, &hour, &minute, &second, &frac);
-	if (ret != 7)
+	for (i = 0; i < ARRAY_SIZE(field); i++) {
+		*field[i] = strtol(p, &end, 10);
+		if (end == p || *end != sep[i])
+			return -EINVAL;
+		p = end + 1;
+	}
+	if (frac < 0 || frac > 999)
 		return -EINVAL;
 	if (year < 1900)
 		return -EINVAL;
