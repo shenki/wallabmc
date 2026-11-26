@@ -1197,8 +1197,10 @@ int https_cert_cmd_regenerate(const struct shell *sh, size_t argc, char **argv)
 	 * A warm reboot keeps RAM, so clear the key here rather than leave it
 	 * until early boot zeroes .bss. A connection accepted from now on
 	 * fails its handshake, which doesn't matter as the BMC is rebooting.
-	 * Each connection's parsed copy is in the mbedTLS heap, which is in
-	 * .bss and zeroed at boot.
+	 * Each connection's parsed copy is in the mbedTLS heap. Early boot
+	 * doesn't zero the heap when it's in DTCM, a NOLOAD section, but
+	 * mbedtls_memory_buffer_alloc_init() clears all of it when mbedTLS
+	 * is initialised at boot, before anything allocates from it.
 	 */
 	k_mutex_lock(&https_cert_lock, K_FOREVER);
 	mbedtls_platform_zeroize(key_der, sizeof(key_der));
