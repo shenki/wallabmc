@@ -1,7 +1,8 @@
 # SPDX-FileCopyrightText: © 2026 Tenstorrent USA, Inc.
 # SPDX-License-Identifier: Apache-2.0
 
-# Post the binary size report from a pull request's build as a comment.
+# Post the binary size report from a pull request's build as a check on the
+# commit and as a comment.
 #
 # This is separate from the build because a pull_request run from a fork has
 # a read-only token. A workflow_run job runs from the default branch with a
@@ -20,6 +21,8 @@ permissions:
   contents: read
   actions: read
   pull-requests: write
+  # To publish the report as a check on the pull request's commit
+  checks: write
 
 jobs:
   comment:
@@ -43,6 +46,31 @@ jobs:
             exit 0
           fi
 
+          # Every build gets a check with the headline, whether or not it
+          # gets a comment. The check is neutral, so it never holds up a pull
+          # request, and failing to create it is not an error.
+          base_sha=$(jq -r '.base_sha | strings' sizes/meta.json)
+          wanted_sha=$(jq -r '.wanted_sha | strings' sizes/meta.json)
+          run_url="$GITHUB_SERVER_URL/$REPO/actions/runs/$RUN_ID"
+          python3 scripts/size_report.py compare --full \
+            --head sizes/head --base sizes/base \
+            --base-sha "$base_sha" --wanted-base-sha "$wanted_sha" \
+            --headline headline.txt -o check.md
+          jq -n --arg sha "$HEAD_SHA" --arg url "$run_url" \
+            --rawfile title headline.txt --rawfile summary check.md '{
+              name: "Build report",
+              head_sha: $sha,
+              status: "completed",
+              conclusion: "neutral",
+              details_url: $url,
+              output: {
+                title: ($title | rtrimstr("\n")),
+                summary: ($summary + "\n[Build summary](" + $url + ")\n")
+              }
+            }' > check.json
+          gh api "repos/$REPO/check-runs" --input check.json > /dev/null ||
+            echo "::warning::Could not create the build report check"
+
           # The pull request number comes from the build, so check that it
           # names the pull request this build was for.
           pr=$(jq -r '.pr | select(type == "number") | floor' sizes/meta.json)
@@ -57,9 +85,8 @@ jobs:
 
           python3 scripts/size_report.py compare \
             --head sizes/head --base sizes/base \
-            --base-sha "$(jq -r '.base_sha | strings' sizes/meta.json)" \
-            --wanted-base-sha "$(jq -r '.wanted_sha | strings' sizes/meta.json)" \
-            --run-url "$GITHUB_SERVER_URL/$REPO/actions/runs/$RUN_ID" \
+            --base-sha "$base_sha" --wanted-base-sha "$wanted_sha" \
+            --run-url "$run_url" \
             -o comment.md
 
           # Keep one comment per pull request and update it. When the build

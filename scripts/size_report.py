@@ -110,6 +110,7 @@ COMPONENT_BAR_WIDTH = 12
 TOP_SYMBOLS = 10
 MAX_CONFIG_LINES = 100
 MAX_REPORT = 60000
+MAX_HEADLINE = 200
 
 
 def parse_log(path):
@@ -626,9 +627,51 @@ def unchanged(head, base):
     return True
 
 
+def headline(head, base):
+    """One line on how a build compares with its baseline.
+
+    It names the board that changed the most, the featured one if there
+    are several, and says if there is anything else to look for.
+    """
+    if not head:
+        return "No size data"
+    if not base:
+        return "No baseline from main"
+    text = "No size change"
+    top = (0, False)
+    kconfig = False
+    new = []
+    for board in sorted(head):
+        if board not in base:
+            new.append(board)
+            continue
+        rows, _ = rows_for(head[board], base[board])
+        size = max((abs(row_delta(r) or 0) for r in rows), default=0)
+        if size and (size, board == FEATURED_BOARD) > top:
+            top = (size, board == FEATURED_BOARD)
+            changes = [
+                f"{r['label']} {delta(r['base'], r['used'])}".replace("*", "").strip()
+                for r in trim(rows)
+            ]
+            text = f"{board} " + ", ".join(changes)
+        for image in head[board]:
+            h = get(head, board, image, "config")
+            b = get(base, board, image, "config")
+            if isinstance(h, dict) and isinstance(b, dict) and h != b:
+                kconfig = True
+    if kconfig:
+        text += "; Kconfig changed"
+    if new:
+        text += "; new board " + ", ".join(new)
+    return text[:MAX_HEADLINE]
+
+
 def compare(args):
     head = load_dir(args.head)
     base = load_dir(args.base)
+    if args.headline:
+        with open(args.headline, "w") as f:
+            f.write(headline(head, base) + "\n")
     # The full report is always written out, the short one has nothing to
     # say about a build that matches its baseline.
     same = not args.full and unchanged(head, base)
@@ -812,6 +855,7 @@ def main():
         help="list every row of every board, rather than what changed",
     )
     p.add_argument("--run-url", help="build run to link to from the short report")
+    p.add_argument("--headline", help="file to write a one line summary to")
     p.add_argument("-o", "--output", default="-")
     p.set_defaults(func=compare)
 
