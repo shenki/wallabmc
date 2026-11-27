@@ -394,7 +394,7 @@ static int rails_off(void)
 /* Wait until the power-good inputs of a rail read level */
 static int rail_wait_good(const struct power_rail *rail, int level)
 {
-	int64_t deadline = k_uptime_get() + rail->good_timeout_ms;
+	k_timepoint_t deadline = sys_timepoint_calc(K_MSEC(rail->good_timeout_ms));
 
 	for (;;) {
 		const struct power_good *late = NULL;
@@ -420,7 +420,7 @@ static int rail_wait_good(const struct power_rail *rail, int level)
 		if (!late)
 			return 0;
 
-		if (k_uptime_get() >= deadline) {
+		if (sys_timepoint_expired(deadline)) {
 			LOG_ERR("%s: %s %s after %u ms", rail->name, late->name,
 				level ? "not good" : "still good",
 				rail->good_timeout_ms);
