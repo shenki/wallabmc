@@ -648,7 +648,7 @@ def compare(args):
     else:
         sha = re.sub(r"[^0-9a-f]", "", args.base_sha or "")
         wanted = re.sub(r"[^0-9a-f]", "", args.wanted_base_sha or "")
-        where = f" at `{sha[:12]}`" if sha else ""
+        where = f" at {sha[:12]}" if sha else ""
         if same:
             plural = "s" * (len(head) != 1)
             out.append(
@@ -659,7 +659,7 @@ def compare(args):
             out.append(f"Change against main{where}. Sizes are in bytes.")
         if wanted and wanted != sha:
             note = (
-                f"Note: there was no finished build of `{wanted[:12]}`, which is"
+                f"Note: there was no finished build of {wanted[:12]}, which is"
                 " what this should be compared with, so the changes shown may"
                 " include other commits."
             )
