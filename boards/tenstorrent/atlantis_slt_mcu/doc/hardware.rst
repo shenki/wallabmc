@@ -495,7 +495,9 @@ DS2; until then replace ``power-good`` on ``vcore_0v8`` with a
 ``settle-ms`` in
 ``boards/tenstorrent/common/atlantis_wallabmc.dtsi``, which leaves VCORE
 ungated. Steps 6 to 11 have no power-good input. Every wait
-allows 1 s (``power-good-timeout-ms``, polled each millisecond). The settle
+allows 1 s (``power-good-timeout-ms``, polled each millisecond). A rail's
+timeout, settle time and off delay can each be at most 65535 ms (65.5 s);
+a larger devicetree value is a build error. The settle
 times are 1 ms after VDDQ and 5 ms after each PCIe rail, nothing elsewhere;
 they cover the soft-start of regulators with no power-good input, are the
 firmware's choice and are not yet verified on hardware. After step 11 the

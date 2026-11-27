@@ -553,7 +553,9 @@ the same 100 ms off delay before step 1 as ``power off``, leaves SYS_RSTN
 asserted and returns the error to the shell or Redfish.
 
 The power-good timeout is 1 s for every step except step 1, which allows
-2 s because ATX T1 + T3 can reach 1 s. The settle times are 1 ms after
+2 s because ATX T1 + T3 can reach 1 s. A rail's timeout, settle time and
+off delay can each be at most 65535 ms (65.5 s); a larger devicetree value
+is a build error. The settle times are 1 ms after
 step 6, 5 ms after steps 7 and 8 and 120 ms after step 9; the other
 steps have none. The SoC requires only the rail order and specifies no
 inter-rail delays, so these are the firmware's choice: they cover the

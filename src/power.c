@@ -48,15 +48,17 @@ struct power_good {
  * A host power rail: an enable to drive, the power-good inputs to wait for
  * and a settle time before the next rail comes up. Power off pauses
  * off_delay_ms before a rail that the rails switched off earlier need
- * while they shut down.
+ * while they shut down. The times are 16 bits of milliseconds, so at most
+ * 65535 ms (65.5 s): the binding gives each property that max, and
+ * RAIL_MS_ASSERT() checks it again here, next to the type.
  */
 struct power_rail {
 	struct gpio_dt_spec enable;
 	const struct power_good *good;
 	uint8_t ngood;
-	uint32_t good_timeout_ms;
-	uint32_t settle_ms;
-	uint32_t off_delay_ms;
+	uint16_t good_timeout_ms;
+	uint16_t settle_ms;
+	uint16_t off_delay_ms;
 	const char *name;
 };
 
@@ -75,11 +77,20 @@ struct power_rail {
 			DT_FOREACH_PROP_ELEM(node, power_good, POWER_GOOD)	\
 		};), ())
 
+/* A time that does not fit struct power_rail would silently wrap */
+#define RAIL_MS_ASSERT(node, prop)						\
+	BUILD_ASSERT(DT_PROP(node, prop) <= UINT16_MAX,				\
+		     DT_NODE_FULL_NAME(node) ": " #prop				\
+		     " is more than 65535 ms");
+
 /*
  * wallabmc,power-rail nodes. The binding gives the timeout, settle and
  * off delay a default, so DT_PROP() is defined for every rail.
  */
 #define RAIL_DEFINE(node)							\
+	RAIL_MS_ASSERT(node, power_good_timeout_ms)				\
+	RAIL_MS_ASSERT(node, settle_ms)						\
+	RAIL_MS_ASSERT(node, off_delay_ms)					\
 	RAIL_GOOD_ARRAY(node)							\
 	static const struct power_rail RAIL(node) = {				\
 		.enable = GPIO_DT_SPEC_GET(DT_PHANDLE(node, enable), gpios),	\
