@@ -43,6 +43,13 @@ CONFIG_IGNORE = {
     "DEFAULT_ADMIN_PASSWORD",  # random for each build
 }
 
+# Kconfig symbols that are left out when comparing, by prefix.
+#
+# The DT_HAS_<compatible>_ENABLED symbols are generated from the devicetree,
+# one for each compatible that has an enabled node. They say that a board's
+# devicetree changed, which is not a change to its configuration.
+CONFIG_GENERATED = ("DT_HAS_",)
+
 # Regions that are linker bookkeeping rather than memory.
 #
 # On the ESP32-C6, irom0_0_seg and drom0_0_seg are the same address window
@@ -285,6 +292,20 @@ def as_int(value):
     return value if isinstance(value, int) and not isinstance(value, bool) else 0
 
 
+def drop_generated(images):
+    """Take the generated Kconfig symbols out of a board's images."""
+    if isinstance(images, dict):
+        for image in images.values():
+            config = image.get("config") if isinstance(image, dict) else None
+            if isinstance(config, dict):
+                image["config"] = {
+                    k: v
+                    for k, v in config.items()
+                    if not str(k).startswith(CONFIG_GENERATED)
+                }
+    return images
+
+
 def load_dir(directory):
     """Return {board: images} from every size-*.json under directory."""
     boards = {}
@@ -295,7 +316,7 @@ def load_dir(directory):
         try:
             with open(path) as f:
                 data = json.load(f)
-            boards[clean(data["board"], 64)] = data["images"]
+            boards[clean(data["board"], 64)] = drop_generated(data["images"])
         except (OSError, ValueError, KeyError, TypeError) as e:
             print(f"skipping {path}: {e}", file=sys.stderr)
     return boards
