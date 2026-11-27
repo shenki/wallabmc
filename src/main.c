@@ -57,6 +57,28 @@ static void print_banner(void)
 
 	LOG_INF("Project build: %s", PROJECT_GIT_SHA);
 	LOG_INF("Zephyr OS build: %s", BANNER_VERSION);
+	/* Test only: about 1 KB of text, to move the size report */
+	LOG_INF("%s",
+		"size report test padding line 00 ........................\n"
+		"size report test padding line 01 ........................\n"
+		"size report test padding line 02 ........................\n"
+		"size report test padding line 03 ........................\n"
+		"size report test padding line 04 ........................\n"
+		"size report test padding line 05 ........................\n"
+		"size report test padding line 06 ........................\n"
+		"size report test padding line 07 ........................\n"
+		"size report test padding line 08 ........................\n"
+		"size report test padding line 09 ........................\n"
+		"size report test padding line 10 ........................\n"
+		"size report test padding line 11 ........................\n"
+		"size report test padding line 12 ........................\n"
+		"size report test padding line 13 ........................\n"
+		"size report test padding line 14 ........................\n"
+		"size report test padding line 15 ........................\n"
+		"size report test padding line 16 ........................\n"
+		"size report test padding line 17 ........................\n"
+		"size report test padding line 18 ........................\n"
+		"size report test padding line 19 ........................\n");
 #if defined(CONFIG_REDFISH)
 	LOG_INF("Board: %s", CONFIG_REDFISH_SYSTEM_PRODUCT_NAME);
 	LOG_INF("System: %s %s (CPU: %s x%d, Memory: %d GiB)",
