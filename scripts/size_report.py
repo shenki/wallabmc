@@ -23,6 +23,9 @@ import re
 import sys
 
 MARKER = "<!-- wallabmc-size-report -->"
+# The second line of a short report that has no changes to show, so that
+# whoever posts it can tell without reading the rest.
+UNCHANGED = "<!-- wallabmc-size-unchanged -->"
 
 TABLE_HEADER = re.compile(r"^Memory region\s+Used Size\s+Region Size")
 TABLE_ROW = re.compile(
@@ -609,11 +612,34 @@ def config_report(head, base):
     return out
 
 
+def unchanged(head, base):
+    """Whether every board of a build has the sizes and Kconfig of its baseline.
+
+    A board that only the baseline has is not a change, as the report has
+    nothing to show for it. The symbols are not compared: the report only
+    lists them for a board whose size changed.
+    """
+    if not head or not set(head) <= set(base):
+        return False
+    for board in head:
+        if set(head[board]) != set(base[board]):
+            return False
+        for image in head[board]:
+            for section in ("regions", "config"):
+                h = get(head, board, image, section)
+                if h != get(base, board, image, section):
+                    return False
+    return True
+
+
 def compare(args):
     head = load_dir(args.head)
     base = load_dir(args.base)
+    # The full report is always written out, the short one has nothing to
+    # say about a build that matches its baseline.
+    same = not args.full and unchanged(head, base)
 
-    out = [MARKER, "### Build report", ""]
+    out = [MARKER, *([UNCHANGED] * same), "### Build report", ""]
 
     if not head:
         out.append("No size data was produced by this build.")
@@ -623,7 +649,14 @@ def compare(args):
         sha = re.sub(r"[^0-9a-f]", "", args.base_sha or "")
         wanted = re.sub(r"[^0-9a-f]", "", args.wanted_base_sha or "")
         where = f" at `{sha[:12]}`" if sha else ""
-        out.append(f"Change against main{where}. Sizes are in bytes.")
+        if same:
+            plural = "s" * (len(head) != 1)
+            out.append(
+                f"No change against main{where}: the sizes and Kconfig of"
+                f" {len(head)} board{plural} are the same."
+            )
+        else:
+            out.append(f"Change against main{where}. Sizes are in bytes.")
         if wanted and wanted != sha:
             note = (
                 f"Note: there was no finished build of `{wanted[:12]}`, which is"
@@ -631,6 +664,10 @@ def compare(args):
                 " include other commits."
             )
             out += ["", note]
+
+    if same:
+        # Leave out the charts and tables.
+        head = {}
 
     details = []
     entries = []

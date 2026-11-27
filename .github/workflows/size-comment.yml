@@ -62,11 +62,16 @@ jobs:
             --run-url "$GITHUB_SERVER_URL/$REPO/actions/runs/$RUN_ID" \
             -o comment.md
 
-          # Keep one comment per pull request and update it.
+          # Keep one comment per pull request and update it. When the build
+          # is the same as main there is nothing to post, but a comment from
+          # an earlier push is still updated, so that it does not go on
+          # showing changes that are no longer there.
           id=$(gh api "repos/$REPO/issues/$pr/comments" --paginate --jq '
             .[] | select(.user.login == "github-actions[bot]") |
             select(.body | startswith("<!-- wallabmc-size-report -->")) | .id' | head -n 1)
-          if [ -n "$id" ]; then
+          if [ -z "$id" ] && [ "$(sed -n 2p comment.md)" = "<!-- wallabmc-size-unchanged -->" ]; then
+            echo "The build is the same as main, not commenting"
+          elif [ -n "$id" ]; then
             gh api -X PATCH "repos/$REPO/issues/comments/$id" -F body=@comment.md > /dev/null
           else
             gh api "repos/$REPO/issues/$pr/comments" -F body=@comment.md > /dev/null
