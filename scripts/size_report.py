@@ -711,6 +711,14 @@ def compare(args):
     if args.full:
         if entries:
             out += ["", *table(entries, short=False)]
+        # A job summary does not break a paragraph at the end of a line the
+        # way a comment does, so say where the breaks are.
+        if FEATURED_BOARD in head:
+            board = FEATURED_BOARD
+            parts = breakdown(head[board], base.get(board, {}))
+            if parts:
+                bar, legend, _ = parts
+                out += ["", f"`{board}` flash by component:<br>{bar}<br>{legend}"]
     else:
         for board, _, rows in entries:
             if board == FEATURED_BOARD:
