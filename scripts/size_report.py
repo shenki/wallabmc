@@ -593,15 +593,9 @@ def config_report(head, base):
     boards = sum(len(b) for b in groups.values())
     summary = (
         f"Kconfig: {len(symbols)} symbol{'s' * (len(symbols) != 1)} changed"
-        f" on {boards} board{'s' * (boards != 1)}."
+        f" on {boards} board{'s' * (boards != 1)}"
     )
-    out = [
-        "",
-        summary,
-        "",
-        "<details><summary>Kconfig changes</summary>",
-        "",
-    ]
+    out = ["", f"<details><summary>{summary}</summary>", ""]
     for lines, names in groups.items():
         if len(names) == compared and compared > 1:
             title = "All boards"
@@ -639,7 +633,9 @@ def compare(args):
     # say about a build that matches its baseline.
     same = not args.full and unchanged(head, base)
 
-    out = [MARKER, *([UNCHANGED] * same), "### Build report", ""]
+    out = [MARKER, *([UNCHANGED] * same)]
+    title = "### Build report"
+    heading = len(out)
 
     if not head:
         out.append("No size data was produced by this build.")
@@ -721,17 +717,18 @@ def compare(args):
                 chart = bars(rows)
                 if not chart:
                     continue
-                out += ["", f"`{board}` memory use:", "", "```", *chart, "```"]
+                # The heading says whose chart this is.
+                title += f" for {board}"
+                out += ["", "```", *chart, "```"]
                 parts = breakdown(head[board], base.get(board, {}))
                 if parts:
                     bar, legend, lines = parts
                     out += [
                         "",
-                        bar,
-                        "",
-                        legend,
-                        "",
                         "<details><summary>Flash by component</summary>",
+                        "",
+                        bar,
+                        legend,
                         "",
                         "```",
                         *lines,
@@ -739,19 +736,17 @@ def compare(args):
                         "",
                         "</details>",
                     ]
-        if quiet:
-            plural = "s" * (len(quiet) != 1)
-            small = f" of more than {NOISE_BYTES} bytes" if noise else ""
-            out += ["", f"No size change{small} on {len(quiet)} board{plural}."]
         if listed:
             out += ["", *table(listed, short=True)]
 
     out += config_report(head, base)
 
     if quiet and not args.full:
+        small = f" of more than {NOISE_BYTES} bytes" if noise else ""
+        some = f" on {len(quiet)} of {len(entries)}" * (len(quiet) != len(entries))
         out += [
             "",
-            "<details><summary>All boards</summary>",
+            f"<details><summary>All boards: no size change{small}{some}</summary>",
             "",
             *table(entries, short=True),
             "",
@@ -761,9 +756,11 @@ def compare(args):
     if details:
         out += ["", *details]
 
+    # The build summary lists every region.
     url = args.run_url or ""
     if not args.full and re.fullmatch(r"https://[A-Za-z0-9._/-]+", url):
-        out += ["", f"Every region is listed in the [build summary]({url})."]
+        title += f" [(full report)]({url})"
+    out.insert(heading, title)
 
     text = "\n".join(out).rstrip() + "\n"
     if len(text) > MAX_REPORT:
