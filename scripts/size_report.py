@@ -23,9 +23,9 @@ import re
 import sys
 
 MARKER = "<!-- wallabmc-size-report -->"
-# The second line of a short report that has no changes to show, so that
-# whoever posts it can tell without reading the rest.
-UNCHANGED = "<!-- wallabmc-size-unchanged -->"
+# The second line of a short report that is not worth a comment of its
+# own, so that whoever posts it can tell without reading the rest.
+BRIEF = "<!-- wallabmc-size-brief -->"
 
 TABLE_HEADER = re.compile(r"^Memory region\s+Used Size\s+Region Size")
 TABLE_ROW = re.compile(
@@ -73,6 +73,18 @@ PRIMARY_REGIONS = {"FLASH", "RAM", "sram0_0_seg"}
 # A board is only called out as changed when something moves by more than
 # this many bytes.
 NOISE_BYTES = 32
+
+# A pull request only gets the report as a comment when some board changes
+# by at least this many bytes, either way. Less than that is still in the
+# headline and in the full report.
+#
+# The images are around 490 KB, so the limit for flash is about 0.1%. A bug
+# fix or a small refactor moves it by tens of bytes, up to a couple of
+# hundred, and that does not need a table in the review. RAM is what the
+# boards are short of: hifive_premier_p550_mcu has 2.9% free, under 4 KB.
+# So the limit for RAM, and for every region other than FLASH, is lower.
+COMMENT_FLASH_BYTES = 512
+COMMENT_RAM_BYTES = 128
 
 # The board whose memory use is drawn at the top of the short report.
 FEATURED_BOARD = "atlantis_evb_mcu"
@@ -628,8 +640,13 @@ def config_report(head, base):
     return out
 
 
-def unchanged(head, base):
-    """Whether every board of a build has the sizes and Kconfig of its baseline.
+def within(head, base, flash=1, ram=1):
+    """Whether every board of a build is close to its baseline.
+
+    Each image must have the Kconfig and the regions of the baseline, of
+    the same size, and use less than flash bytes more or less of FLASH and
+    less than ram bytes more or less of any other region. The default is
+    no difference at all.
 
     A board that only the baseline has is not a change, as the report has
     nothing to show for it. The symbols are not compared: the report only
@@ -641,9 +658,24 @@ def unchanged(head, base):
         if set(head[board]) != set(base[board]):
             return False
         for image in head[board]:
-            for section in ("regions", "config"):
-                h = get(head, board, image, section)
-                if h != get(base, board, image, section):
+            h = get(head, board, image, "config")
+            if h != get(base, board, image, "config"):
+                return False
+            h = get(head, board, image, "regions")
+            b = get(base, board, image, "regions")
+            if h == b:
+                continue
+            if not isinstance(h, dict) or not isinstance(b, dict) or set(h) != set(b):
+                return False
+            for region in h:
+                hv, bv = h[region], b[region]
+                if hv == bv:
+                    continue
+                if not isinstance(hv, dict) or not isinstance(bv, dict):
+                    return False
+                d = abs(as_int(hv.get("used")) - as_int(bv.get("used")))
+                limit = flash if region == "FLASH" else ram
+                if hv.get("size") != bv.get("size") or not 0 < d < limit:
                     return False
     return True
 
@@ -693,11 +725,12 @@ def compare(args):
     if args.headline:
         with open(args.headline, "w") as f:
             f.write(headline(head, base) + "\n")
-    # The full report is always written out, the short one has nothing to
-    # say about a build that matches its baseline.
-    same = not args.full and unchanged(head, base)
+    # The full report is always written out, the short one has little to
+    # say about a build that is close to its baseline.
+    brief = not args.full and within(head, base, COMMENT_FLASH_BYTES, COMMENT_RAM_BYTES)
+    same = brief and within(head, base)
 
-    out = [MARKER, *([UNCHANGED] * same)]
+    out = [MARKER, *([BRIEF] * brief)]
     title = "### Build report"
     heading = len(out)
 
@@ -715,6 +748,11 @@ def compare(args):
                 f"No change against main{where}: the sizes and Kconfig of"
                 f" {len(head)} board{plural} are the same."
             )
+        elif brief:
+            out.append(
+                f"The largest change against main{where} is small:"
+                f" {headline(head, base)}."
+            )
         else:
             out.append(f"Change against main{where}. Sizes are in bytes.")
         if wanted and wanted != sha:
@@ -725,7 +763,7 @@ def compare(args):
             )
             out += ["", note]
 
-    if same:
+    if brief:
         # Leave out the charts and tables.
         head = {}
 

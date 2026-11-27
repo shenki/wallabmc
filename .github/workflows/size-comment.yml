@@ -90,14 +90,15 @@ jobs:
             -o comment.md
 
           # Keep one comment per pull request and update it. When the build
-          # is the same as main there is nothing to post, but a comment from
-          # an earlier push is still updated, so that it does not go on
-          # showing changes that are no longer there.
+          # is the same as main, or close to it, the report is brief and is
+          # not worth posting. The check has it. A comment from an earlier
+          # push is still updated, so that it does not go on showing changes
+          # that are no longer there.
           id=$(gh api "repos/$REPO/issues/$pr/comments" --paginate --jq '
             .[] | select(.user.login == "github-actions[bot]") |
             select(.body | startswith("<!-- wallabmc-size-report -->")) | .id' | head -n 1)
-          if [ -z "$id" ] && [ "$(sed -n 2p comment.md)" = "<!-- wallabmc-size-unchanged -->" ]; then
-            echo "The build is the same as main, not commenting"
+          if [ -z "$id" ] && [ "$(sed -n 2p comment.md)" = "<!-- wallabmc-size-brief -->" ]; then
+            echo "The build is close to main, not commenting"
           elif [ -n "$id" ]; then
             gh api -X PATCH "repos/$REPO/issues/comments/$id" -F body=@comment.md > /dev/null
           else
